@@ -7,6 +7,7 @@
 	<exclude expression="(.*)\.svn"></exclude>
 	<exclude expression="(.*)\.gz"></exclude>
     </filter>
+	<!-- ???? -->
     <inotify>
 	<delete start="false"/>
 	<createFolder start="true"/>
@@ -19,14 +20,14 @@
     </inotify>
 
     <sersync>
-	<localpath watch="/webserver/logs/">
-	    <remote ip="10.30.222.30" name="10.27.172.90"/>
+	<localpath watch="/???????">
+	    <remote ip="rsync???ip" name="rsync???"/>
 	    <!--<remote ip="192.168.8.39" name="tongbu"/>-->
 	    <!--<remote ip="192.168.8.40" name="tongbu"/>-->
 	</localpath>
 	<rsync>
 	    <commonParams params="-arvt"/>
-	    <auth start="true" users="oper" passwordfile="/etc/rsyncd.pass"/>
+	    <auth start="true" users="???" passwordfile="/etc/rsyncd.pass"/>
 	    <userDefinedPort start="false" port="873"/>
 	    <timeout start="false" time="600"/>
 	    <ssh start="false"/>

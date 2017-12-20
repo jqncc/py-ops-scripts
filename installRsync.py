@@ -52,7 +52,7 @@ def installClient():
     os.system("yum install rsync")
     print("写入密码文件/etc/rsync.pass")
     with open(pass_file, "w+") as passfile:
-        passfile.write("syslog321")
+        passfile.write("passwd")
     os.system("rsync --daemon")
     print("安装sersync")
     sersync_path="/usr/local/sersync"

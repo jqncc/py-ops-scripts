@@ -16,7 +16,7 @@ _tomcatFile = "tomcat-7"  # tomcat文件名
 
 def firewall():
     """
-    开启防火墙服务firewalld,开放内网8080, 8081, 8082,外网80, 443端口
+    开启防火墙服务firewalld,外网80, 443端口
     """
     print("------开启防火墙firewalld------")
     os.system("systemctl enable firewalld")
@@ -24,15 +24,9 @@ def firewall():
     print("指定eth0 zone=internal")
     os.system("firewall-cmd --permanent --zone=internal --change-interface=eth0")
     os.system("firewall-cmd --reload")
-    print("开放外网端口80, 443, 8888")
+    print("开放外网端口80, 443")
     os.system("firewall-cmd --zone=public --add-port=80/tcp --permanent")
     os.system("firewall-cmd --zone=public --add-port=443/tcp --permanent")
-    os.system("firewall-cmd --zone=public --add-port=8888/tcp --permanent")
-    print("开放内网端口8080, 8081, 8082, 8888")
-    os.system("firewall-cmd --zone=internal --add-port=8080/tcp --permanent")
-    os.system("firewall-cmd --zone=internal --add-port=8081/tcp --permanent")
-    os.system("firewall-cmd --zone=internal --add-port=8082/tcp --permanent")
-    os.system("firewall-cmd --zone=internal --add-port=8888/tcp --permanent")
     os.system("firewall-cmd --reload")
     print("当前开放端口结果:")
     os.system("firewall-cmd --list -ports")
@@ -80,23 +74,27 @@ def tomcat(index, enable_redis_session=False):
     pid_path_config = "CATALINA_PID=\"" + target + "/tomcat.pid\""
     fileappend(bin_path + "setenv.sh", pid_path_config)
 
-    # 修改端口
+    # index>0修改端口，在默认端口上加index
     if index > 0:
         print("配置端口")
         server_file = target + "/conf/server.xml"
         server_xml = ET.parse(server_file)
-
+        # 修改端口<Server port="8005"
         node_server = server_xml.getroot()
         old_port = node_server.attrib["port"]
         node_server.set("port", str(int(old_port) + index))
-
+        # 修改端口<Connector port="8080" redirectPort="8443"
         node_connector = node_server.find("./Service/Connector")
-        old_port = node_connector.attrib["port"]
-        node_connector.set("port", str(int(old_port) + index))
+        conn_port = str(int(node_connector.attrib["port"])+ index)
+        node_connector.set("port", conn_port)
 
         old_port = node_connector.attrib["redirectPort"]
         node_connector.set("redirectPort", str(int(old_port) + index))
         server_xml.write(server_file)
+        
+        print("开放内网端口" + old_port)
+        os.system("firewall-cmd --zone=internal --add-port=" + conn_port + "/tcp --permanent")
+        os.system("firewall-cmd --reload")
 
     '''
      集群环境,配置redssion存储tomcat session
@@ -143,41 +141,35 @@ def adduser():
         print("用户tomcat已存在")
     else:
         os.system("useradd -r tomcat")
-    print("创建管理账号oper")
-    oper_exist = filesearch("/etc/passwd", "oper:")
-    if oper_exist:
-        print("用户oper已存在")
+    print("创建管理账号projuser")
+    projuser_exist = filesearch("/etc/passwd", "projuser:")
+    if projuser_exist:
+        print("用户projuser已存在")
     else:
-        os.system("useradd -G tomcat oper")
-        print("设置oper密码")
-        os.system("echo 'Ghgcom*2017'|passwd --stdin oper")
+        os.system("useradd -G tomcat projuser")
+        print("设置projuser密码")
+        os.system("echo 'Ghgcom*2017'|passwd --stdin projuser")
 
 
 def mkappdir():
-    print("创建应用目录:/webserver/bin")
-    if not os.path.exists("/webserver/bin/bak"):
-        os.makedirs("/webserver/bin/bak")
-    print("创建web应用目录:/webserver/webapps")
-    if not os.path.exists("/webserver/webapps/bak"):
-        os.makedirs("/webserver/webapps/bak")
-    print("创建数据目录:/webserver/data")
-    if not os.path.exists("/webserver/data"):
-        os.makedirs("/webserver/data")
-    print("创建日志目录:/webserver/logs")
-    if not os.path.exists("/webserver/logs"):
-        os.makedirs("/webserver/logs")
-    print("创建发布包上传目录:/webserver/updatefile")
-    if not os.path.exists("/webserver/updatefile"):
-        os.makedirs("/webserver/updatefile")
-    print("创建数据库备份目录:/webserver/dback")
-    if not os.path.exists("/webserver/dback"):
-        os.makedirs("/webserver/dback")
+    """
+    所有发布的项目和相关文件放在/project下，只分配projuser ,tomcat 两个用户权限
+    :return: 
+    """
+    print("创建应用目录:/project/bin")
+    if not os.path.exists("/project/bin/bak"):
+        os.makedirs("/project/bin/bak")
+    print("创建web应用目录:/project/webapps")
+    if not os.path.exists("/project/webapps/bak"):
+        os.makedirs("/project/webapps/bak")
+    print("创建数据目录:/project/data")
+    if not os.path.exists("/project/data"):
+        os.makedirs("/project/data")
+    print("创建日志目录:/project/logs")
+    if not os.path.exists("/project/logs"):
+        os.makedirs("/project/logs")
     print("分配目录权限给用户tomcat")
-    os.system("chown -R tomcat:tomcat /webserver")
-    print("分配目录权限给用户oper")
-
-    os.chmod("/webserver",stat.S_IWGRP)
-    os.system("chown -R oper:oper /webserver/updatefile")
+    os.system("chown -R tomcat:tomcat /project")
     return
 
 
@@ -196,10 +188,10 @@ def filesearch(file_path, search_text):
                 break
     return is_exist
 
-
+#执行
 firewall()
 jdk()
+adduser()
 mkappdir()
 tomcat(0)
 tomcat(1)
-tomcat(2)

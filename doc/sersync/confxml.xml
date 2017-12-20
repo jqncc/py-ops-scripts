@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<head version="2.5">
+    <host hostip="localhost" port="8008"></host>
+    <debug start="false"/>
+    <fileSystem xfs="false"/>
+    <filter start="false">
+	<exclude expression="(.*)\.svn"></exclude>
+	<exclude expression="(.*)\.gz"></exclude>
+    </filter>
+    <inotify>
+	<delete start="false"/>
+	<createFolder start="true"/>
+	<createFile start="true"/>
+	<closeWrite start="true"/>
+	<moveFrom start="true"/>
+    <moveTo start="true" />
+	<attrib start="false"/>
+	<modify start="true"/>
+    </inotify>
+
+    <sersync>
+	<localpath watch="/webserver/logs/">
+	    <remote ip="10.30.222.30" name="10.27.172.90"/>
+	    <!--<remote ip="192.168.8.39" name="tongbu"/>-->
+	    <!--<remote ip="192.168.8.40" name="tongbu"/>-->
+	</localpath>
+	<rsync>
+	    <commonParams params="-arvt"/>
+	    <auth start="true" users="oper" passwordfile="/etc/rsyncd.pass"/>
+	    <userDefinedPort start="false" port="873"/>
+	    <timeout start="false" time="600"/>
+	    <ssh start="false"/>
+	</rsync>
+	<failLog path="/tmp/rsync_fail_log.sh" timeToExecute="90"/><!--default every 60mins execute once-->
+	<crontab start="true" schedule="600"><!--600mins-->
+	    <crontabfilter start="false">
+		<!--<exclude expression="*.php"></exclude>
+		<exclude expression="info/*"></exclude>-->
+	    </crontabfilter>
+	</crontab>
+	<plugin start="false" name="command"/>
+    </sersync>
+
+    <plugin name="command">
+	<param prefix="/bin/sh" suffix="" ignoreError="true"/>	<!--prefix /opt/tongbu/mmm.sh suffix-->
+	<filter start="false">
+	    <include expression="(.*)\.php"/>
+	    <include expression="(.*)\.sh"/>
+	</filter>
+    </plugin>
+	<!--
+    <plugin name="socket">
+	<localpath watch="/opt/tongbu">
+	    <deshost ip="192.168.138.20" port="8009"/>
+	</localpath>
+    </plugin>-->
+    
+</head>

@@ -10,5 +10,14 @@ readonly dbport="3306"
 db=$1
 sqlfile=$2
 
-mysqldump -h$dbserver -P${dbport} -u${dbuser[0]} -p${dbuser[1]} ${db} < $sqlfile > sql.log
+while getopts :ab:c opt
+do
+  case "$opt" in
+  a) echo "Found the -a option" ;;
+  b) echo "Found the -b option, with parameter value $OPTAVG" ;;
+  c) echo "Found the -c option" ;;
+  *) echo "Unknown option: $opt" ;;
+  esac
+done
+
 

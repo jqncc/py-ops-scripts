@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# mysql sql文件执行脚本. sh execsql.sh db sqlfile
+# mysql sql文件执行脚本 命令格式: ./execsql.sh dbname sqlfile
 
 # 数据库连接信息设置
 readonly dbserver="localhost"

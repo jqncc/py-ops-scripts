@@ -10,4 +10,6 @@
 ## shell脚本说明(shell目录下)
 
 1. execsql.sh mysql文件执行脚本. 示例: sh executesql.sh db sqlfile
-2. 
+2. java_start.sh java jar程序启动脚本
+3. java_stop.sh java jar程序关闭脚本
+4. clear_tmp.sh 用于清理日志或临时文件

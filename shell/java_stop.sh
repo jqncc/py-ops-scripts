@@ -16,14 +16,14 @@ is_exist(){
 }
 
 is_exist
-if [ $? -eq "1" ]; then
+if [ $? -eq "0" ]; then
     echo "${app} is stopping,pid ${pid}..."
 	  #温柔一刀
     kill $pid
 	  sleep 3
 	 
 	  is_exist
-	  if [ $? -eq "1" ]; then
+	  if [ $? -eq "0" ]; then
       #还在则强杀
       kill -9 $pid
       sleep 2

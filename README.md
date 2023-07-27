@@ -12,7 +12,8 @@
 1. execsql.sh mysql文件执行脚本. 示例: sh executesql.sh db sqlfile
 2. java_start.sh java jar程序启动脚本
 3. java_stop.sh java jar程序关闭脚本
-4. clear_tmp.sh 用于清理日志或临时文件
-5. mysql_upgrade.sh mysql升级脚本
-6. ssl_update.sh openssl升级脚本
-7. ssh_update.sh openssh升级脚本
+4. java_run.sh java程序 启动/停止/重启 脚本
+5. clear_tmp.sh 用于清理日志或临时文件
+6. mysql_upgrade.sh mysql升级脚本
+7. ssl_update.sh openssl升级脚本
+8. ssh_update.sh openssh升级脚本

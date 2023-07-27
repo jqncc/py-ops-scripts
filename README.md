@@ -13,3 +13,6 @@
 2. java_start.sh java jar程序启动脚本
 3. java_stop.sh java jar程序关闭脚本
 4. clear_tmp.sh 用于清理日志或临时文件
+5. mysql_upgrade.sh mysql升级脚本
+6. ssl_update.sh openssl升级脚本
+7. ssh_update.sh openssh升级脚本

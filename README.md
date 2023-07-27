@@ -6,6 +6,7 @@
 2. deployFabic.py 使用fabric远程执行tomcat项目发布
 3. installAllInOn.py centos服务器java web环境一键设置和安装软件的脚本
 4. installRsync.py rsync的安装脚本
+5. splitExcel.py 拆分excel文件
 
 ## shell脚本说明(shell目录下)
 

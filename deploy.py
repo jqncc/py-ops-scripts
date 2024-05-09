@@ -1,34 +1,41 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import ConfigParser
+import subprocess
 import time
 import collections
-import shutil as sh
 import os
-import uuid
 import sys
+import psutil
 
 '''
 项目发布脚本(适用本机,非远程),脚本将打包备份原项目,发布新项目后自动重启
 须预先在脚本中配置好项目属性,执行命令: deploy.py 项目名. 
 '''
 
-# 备份目录
-backupDir = "/proj/bak/"
-# 项目部署根目录
-projRootDir = "/proj/bin/"
-# 软件包存放目录
-packageDir = "/proj/package"
-# 解压java的war包命令,不是war包可忽略设置
-jarpath = "/usr/jdk1.8/bin/jar"
+# 定义一个命名元组,设置环境属性
+Env = collections.namedtuple('Env', 'jarPath backupDir projBaseDir updateTempDir')
 
-# 定义一个命名元组,设置项目属性:软件包名(package)、发布目录(target,非/开头则默认是相对于部署根目录)、启动命令(boot)，停止命令(stop)
-Project = collections.namedtuple('Project', 'package target boot stop')
+remove_old_files = False
 
-cms = Project(target='cms', package='cms.war', boot='sh /tomcat/startup.sh', stop='sh /tomcat/shutdown.sh')
-shop = Project(target='shop', package='shop.tar', boot='sh shop.sh start', stop='sh shop.sh stop')
 
-# 定义项目名与项目属性关联
-projDict = {"cms_v1": cms, "wxshop": shop}
+class ProjCfg:
+
+    def __init__(self, name, proj_file="", proj_dir="", start_exec="", stop_exec=""):
+        self.name = name
+        self.projFile = proj_file
+
+        self.startExec = start_exec
+        self.stopExec = stop_exec
+        self.projDir = proj_dir
+        # self.user = _user
+        # self.group = _group
+
+    def check(self):
+        if not os.path.exists(self.projFile):
+            raise Exception, "项目文件不存在:" + self.projFile
+        if not os.path.exists(self.projDir):
+            os.makedirs(self.projDir)
 
 
 def backup(proj):
@@ -37,20 +44,14 @@ def backup(proj):
     :param proj:
     :return:
     """
-    if not os.path.isabs(proj.target):
-        projFullPath = projRootDir + proj.target
-    else:
-        projFullPath = proj.target
-    pname = os.path.basename(projFullPath)
-    if os.path.exists(projFullPath):
-        print("备份项目:" + pname)
+    if os.path.exists(proj.projDir) and len(os.listdir(proj.projDir)) > 0:
+        print("备份项目:" + proj.projDir)
         now = time.strftime("%Y%m%d%H%M", time.localtime())
-        # 生成唯一备份文件名,避免覆盖之前备份.文件名=项目名+当前时间点+UUID
-        bakname = "%s_%s_%s.tgz" % (pname, now, uuid.uuid1())
-        bakpath = os.path.join(backupDir, pname, bakname)
-        os.chdir(projRootDir)
-        os.system("tar -czf %s %s" % (bakname, bakpath))
-        print("备份完成，备份文件路径：" + bakpath)
+        # 生成唯一备份文件名,避免覆盖之前备份.文件名=项目名+当前时间点
+        bakname = "%s_%s.tgz" % (os.path.basename(proj.projFile), now)
+        os.chdir(DeployEnv.backupDir)
+        os.system("tar -czf %s %s" % (bakname, proj.projDir))
+        print("备份完成，备份文件路径：", DeployEnv.backupDir, bakname)
     else:
         print("原项目[%s]不存在：" % proj)  # 原项目不存在，可能是新发版
 
@@ -61,72 +62,101 @@ def publish(proj):
     :param proj:
     :return:
     """
-    packageFullPath = os.path.join(packageDir, proj.package)
-    if os.access(packageFullPath, os.F_OK):
-        tmpDir = os.path.join(packageDir, str(uuid.uuid1()))
-        ext = os.path.splitext(packageFullPath)[-1]  # 取扩展名
-        extract_cmd = None
-        # 如果是压缩包解压
-        if '.war' == ext:
-            print("[%s]解压中..." % proj.package)
-            extract_cmd = "%s -xf %s" % (jarpath, packageFullPath)
-        elif ext in ['.tar', '.tgz']:
-            extract_cmd = "tar -xf %s" % packageFullPath
-        elif ext == '.gz':
-            if proj.package.endswith('.tar.gz'):
-                extract_cmd = "tar -zxf %s" % packageFullPath
-            else:
-                extract_cmd = "gzip -d %s" % packageFullPath
-        elif ext == '.zip':
-            extract_cmd = "unzip %s" % packageFullPath
-
-        pname = os.path.basename(proj.target)
-        os.chdir(tmpDir)
-        if extract_cmd is not None:
-            os.mkdir(pname)
-            os.chdir(pname)
-            os.system(extract_cmd)
-        else:
-            # 不需要解压的直接copy文件
-            if os.path.isdir(packageFullPath):
-                sh.copyfile(packageFullPath, tmpDir)
-                if proj.package != pname:
-                    os.rename(proj.package, pname)
-            else:
-                sh.copy(packageFullPath, pname)
-        # 停止
-        os.system(proj.stop)
-        if not os.path.isabs(proj.target):
-            projpath = os.path.join(projRootDir, proj.target)
-        else:
-            projpath = proj.target
-        # 删除原项目
-        if os.path.exists(projpath):
-            sh.rmtree(projpath)
-        # 移动新项目
-        sh.move(os.path.join(tmpDir, pname), projRootDir)
-        print("启动中...")
-        os.system(proj.boot)
-        print("发布完成")
-        sh.rmtree(tmpDir, True)
+    print("开始发布新项目")
+    ext = os.path.splitext(proj.projFile)[-1]  # 取扩展名
+    if pCfg.stopExec != "":
+        print("关闭原进程")
+        ret = subprocess.call(pCfg.stopExec, shell=True)
+        print(ret)
+        time.sleep(2)
     else:
-        print("发布失败!项目包[%s]不存在" % proj.package)
+        if ".jar"==ext:
+            stopJavaProcessByJarname(os.path.basename(proj.projFile))
+            time.sleep(2)
+
+    extract_cmd = None
+    if '.war' == ext:
+        extract_cmd = "%s -xf %s" % (DeployEnv.jarPath, proj.projFile)
+    elif ext in ['.tar', '.tgz']:
+        extract_cmd = "tar -xf %s" % proj.projFile
+    elif ext == '.gz':
+        if proj.projFile.endswith('.tar.gz'):
+            extract_cmd = "tar -zxf %s" % proj.projFile
+        else:
+            extract_cmd = "gzip -d %s" % proj.projFile
+    elif ext == '.zip':
+        extract_cmd = "unzip -o %s" % (proj.projFile)
+
+    if remove_old_files:
+        print("删除原项目文件")
+        os.system("rm -rf {}/*".format(proj.projDir))
+    if extract_cmd is not None:
+        os.chdir(proj.projDir)
+        print("解压新项目文件")
+        os.system(extract_cmd)
+    else:
+        print("移动新文件")
+        if os.path.isdir(proj.projFile):
+            os.system("mv -f {}/* {}".format(proj.projFile, proj.projDir))
+        else:
+            os.system("mv -f {} {}".format(proj.projFile, proj.projDir))
+    if proj.startExec is not None:
+        print("开始启动: " + proj.startExec)
+        os.system(proj.startExec)
+    print("发布完成")
 
 
-def executeSql(db_host, db_user, db_passwd, db_name, sql_file):
+def readCfg(cfgfile, proj):
     """
-    执行sql脚本文件,执行日志写入sql_file.log文件
-    :param db_host: 数据库地址
-    :param db_user: 数据库用户名
-    :param db_passwd: 数据库密码
-    :param db_name: 数据库名
-    :param sql_file: 要执行的sql文件绝对路径
-    :return:
+    读取配置文件
     """
-    logFile = sql_file + ".log"
-    dbinfo = {"host": db_host, "user": db_user, "pwd": db_passwd, "db": db_name, "sqlFile": sql_file, "log": logFile}
-    runSqlCmd = 'mysql -h {host} -u{user} -p{pwd} {db} < {sqlFile} > {log}'
-    os.system(runSqlCmd.format(**dbinfo))
+    iniCfg = ConfigParser.ConfigParser()
+    iniCfg.read(cfgfile)
+
+    jdkpath = iniCfg.get("env", "jdk")
+    if jdkpath == "" or not os.path.exists(jdkpath):
+        jdkpath = os.getenv("JAVA_HOME")
+    if jdkpath is not None:
+        jdkpath = os.path.join(jdkpath, "bin/jar")
+
+    updateTempDir = iniCfg.get("env", "updateTempDir")
+    if updateTempDir is None or updateTempDir == "":
+        updateTempDir = os.getcwd()
+
+    projBaseDir = iniCfg.get("env", "projBaseDir")
+    if projBaseDir == "" or projBaseDir is None:
+        raise Exception, "请配置项目部署的基目录:projBaseDir"
+
+    backupDir = iniCfg.get("env", "backupDir")
+
+    global DeployEnv
+    DeployEnv = Env(jarPath=jdkpath, backupDir=backupDir, projBaseDir=projBaseDir, updateTempDir=updateTempDir)
+    # 读取要发布的项目配置
+    if iniCfg.has_section(proj):
+        cfg = ProjCfg(proj)
+
+        cfg.projFile = iniCfg.get(proj, "projFile")
+        if cfg.projFile[0] != '/':
+            cfg.projFile = os.path.join(DeployEnv.updateTempDir, cfg.projFile)
+        cfg.projDir = iniCfg.get(proj, "projDir")
+        if cfg.projDir[0] != '/':
+            cfg.projDir = os.path.join(DeployEnv.projBaseDir, cfg.projDir)
+        cfg.startExec = iniCfg.get(proj, "startExec")
+        cfg.stopExec = iniCfg.get(proj, "stopExec")
+
+        cfg.check()
+        return cfg
+    else:
+        raise Exception, "没有项目[" + proj + "]的配置"
+
+
+def stopJavaProcessByJarname(processname):
+    pl = psutil.pids()
+    for pid in pl:
+        proc = psutil.Process(pid)
+        if proc.name() == "java" and processname in proc.cmdline():
+            proc.kill()
+            print("关闭进程,PID:%d, %s" % (pid, processname))
 
 
 if __name__ == "__main__":
@@ -135,9 +165,13 @@ if __name__ == "__main__":
         print("请输入要发布的项目名")
     else:
         projName = sys.argv[1]
-        curProj = projDict.get(projName.strip())
-        if curProj is not None:
-            backup(curProj)
-            publish(curProj)
+        for arg in sys.argv:
+            if arg == "-r":
+                remove_old_files = True
+        pCfg = readCfg("deploy.ini", projName)
+
+        if pCfg is not None:
+            backup(pCfg)
+            publish(pCfg)
         else:
             print("项目%s未配置" % projName)

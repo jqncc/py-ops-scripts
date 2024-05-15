@@ -33,7 +33,7 @@ class ProjCfg:
 
     def check(self):
         if not os.path.exists(self.projFile):
-            raise Exception, "项目文件不存在:" + self.projFile
+            raise Exception("项目文件不存在:" + self.projFile)
         if not os.path.exists(self.projDir):
             os.makedirs(self.projDir)
 
@@ -125,7 +125,7 @@ def readCfg(cfgfile, proj):
 
     projBaseDir = iniCfg.get("env", "projBaseDir")
     if projBaseDir == "" or projBaseDir is None:
-        raise Exception, "请配置项目部署的基目录:projBaseDir"
+        raise Exception("请配置项目部署的基目录:projBaseDir")
 
     backupDir = iniCfg.get("env", "backupDir")
 
@@ -147,7 +147,7 @@ def readCfg(cfgfile, proj):
         cfg.check()
         return cfg
     else:
-        raise Exception, "没有项目[" + proj + "]的配置"
+        raise Exception("没有项目[" + proj + "]的配置")
 
 
 def stopJavaProcessByJarname(processname):

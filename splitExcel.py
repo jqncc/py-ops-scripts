@@ -37,4 +37,4 @@ def splitExcelByRow(excelPath, sheetIndex=0, rowLimit=65535, encoding='utf-8'):
         print("新文件"+newexcelPath)
 
 
-splitExcelByRow('C:\\Users\\Administrator\\Desktop\\新建文件夹\\分类训练数据集\\网上商品库\\原始商品2.xlsx', rowLimit=63000)
+splitExcelByRow('C:\\Users\\Administrator\\Desktop\\2.xlsx', rowLimit=63000)
